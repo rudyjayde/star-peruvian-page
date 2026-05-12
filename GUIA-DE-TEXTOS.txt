@@ -1,0 +1,438 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║           GUÍA COMPLETA DE TEXTOS — STAR PERUVIAN                   ║
+║     Dónde encontrar y editar cada texto del sitio web                ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+Cada sección indica: ARCHIVO → qué texto aparece → cómo editarlo
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+══════════════════════════════════════════════════════════════
+  1. BARRA DE NAVEGACIÓN (menú superior)
+     ARCHIVO: frontend/src/components/Navbar.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible          → Dónde está en el archivo
+  ─────────────────────────────────────────────────
+  "INICIO"               → busca: label: 'Inicio'
+  "PRODUCTOS"            → busca: label: 'Productos'
+  "MARCAS"               → busca: label: 'Marcas'
+  "NOSOTROS"             → busca: label: 'Nosotros'
+  "CÓMO COMPRAR"         → busca: label: 'Cómo Comprar'
+  "CONTACTO"             → busca: label: 'Contacto'
+  "Iniciar Sesión"       → busca: Iniciar Sesión  (botón rojo)
+  "Panel Admin"          → busca: Panel Admin     (solo admins)
+  "Cerrar Sesión"        → busca: Cerrar Sesión
+
+
+══════════════════════════════════════════════════════════════
+  2. SECCIÓN HERO (pantalla principal con video)
+     ARCHIVO: frontend/src/components/Hero.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                                  → Dónde está
+  ────────────────────────────────────────────────────────────
+  "DISTRIBUIDORES E IMPORTADORES..."             → busca: hero-badge
+                                                   (la etiqueta roja pequeña arriba)
+
+  "STAR PERUVIAN"                                → busca: hero-title
+                                                   línea: <span className="line-accent">STAR</span> PERUVIAN
+
+  "Importación & Distribución Mayorista"         → busca: Importación &amp; Distribución
+                                                   (texto gris debajo del título)
+
+  "Productos originales con los mejores..."      → busca: hero-subtitle
+                                                   (el párrafo descriptivo)
+
+  "Ver Catálogo →"                               → busca: Ver Catálogo
+                                                   (botón rojo)
+
+  "WhatsApp"                                     → busca: btn-outline-white
+                                                   (botón blanco — también cambia el número:
+                                                    wa.me/51974789135 → pon tu número)
+
+  Estadísticas pequeñas (4 números):
+  "+500 Clientes activos"                        → busca: num: '+500', label: 'Clientes activos'
+  "100% Cobertura nacional"                      → busca: num: '100%', label: 'Cobertura nacional'
+  "+50  Categorías"                              → busca: num: '+50',  label: 'Categorías'
+  "24h  Tiempo de respuesta"                     → busca: num: '24h',  label: 'Tiempo de respuesta'
+
+  "Scroll"                                       → busca: hero-scroll  (indicador de scroll abajo)
+
+
+══════════════════════════════════════════════════════════════
+  3. BANDA ANIMADA (ticker azul que se mueve)
+     ARCHIVO: frontend/src/components/Stats.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible          → Dónde está
+  ──────────────────────────────────────────────────────────
+  "+500 · Clientes"      → busca: tickerData  (primer bloque)
+  "Nacional · Cobertura" → mismo bloque tickerData
+  "Stock · Permanente"   → mismo bloque tickerData
+  "+15 · Categorías"     → mismo bloque tickerData
+  "24H · Respuesta"      → mismo bloque tickerData
+  "Mín. 12 · Unidades"   → mismo bloque tickerData
+  "Original · Garantizado" → mismo bloque tickerData
+
+  NOTA: Los items se repiten dos veces para que el ticker
+        sea continuo. Edita solo los primeros 7.
+
+
+══════════════════════════════════════════════════════════════
+  4. SECCIÓN DE ESTADÍSTICAS (fondo azul, contadores)
+     ARCHIVO: frontend/src/components/Stats.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible              → Dónde está
+  ──────────────────────────────────────────────────────────
+  "500+ Clientes Activos"    → busca: end: 500,   label: 'Clientes Activos'
+  "15000+ Pedidos Comp..."   → busca: end: 15000, label: 'Pedidos Completados'
+  "25   Departamentos"       → busca: end: 25,    label: 'Departamentos'
+  "98%  Satisfacción"        → busca: end: 98,    label: 'Satisfacción'
+
+  NOTA: "end" es el número final del contador animado.
+        Cambia el número y el texto del label.
+
+
+══════════════════════════════════════════════════════════════
+  5. SECCIÓN "¿POR QUÉ ELEGIRNOS?" (tarjetas de beneficios)
+     ARCHIVO: frontend/src/components/Trust.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                         → Dónde está
+  ──────────────────────────────────────────────────────────
+  "¿Por qué elegirnos?"                 → busca: <div className="label">
+  "La confianza de más de..."           → busca: section-title  (h2)
+  "100 Mayoristas en todo el Perú"      → busca: text-red  (dentro del h2)
+  "Más de 5 años distribuyendo..."      → busca: section-subtitle
+
+  Tarjetas (cada una tiene icon, title, desc):
+  "🔒 Productos 100% Originales"        → busca: title: 'Productos 100% Originales'
+  "💰 Precios Mayoristas"               → busca: title: 'Precios Mayoristas'
+  "🚚 Envíos a Todo el Perú"            → busca: title: 'Envíos a Todo el Perú'
+  "⚡ Stock Permanente"                  → busca: title: 'Stock Permanente'
+  "🤝 Atención Personalizada"           → busca: title: 'Atención Personalizada'
+  "📋 Facturación Electrónica"          → busca: title: 'Facturación Electrónica'
+  "🔄 Cambios y Devoluciones"           → busca: title: 'Cambios y Devoluciones'
+  "📦 Mínimo 12 Unidades"               → busca: title: 'Mínimo 12 Unidades'
+
+
+══════════════════════════════════════════════════════════════
+  6. SECCIÓN PRODUCTOS (catálogo con filtros)
+     ARCHIVO: frontend/src/components/Products.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                         → Dónde está
+  ──────────────────────────────────────────────────────────
+  "CATÁLOGO"                            → busca: <div className="label reveal">
+  "Nuestros Productos"                  → busca: section-title  (h2)
+  "TODOS", "CASACAS", etc.              → los genera automáticamente según
+                                          las categorías de tus productos en BD
+
+  Botón final:
+  "Ver Catálogo Completo por WhatsApp"  → busca: Ver Catálogo Completo
+                                          (también cambia el número wa.me/...)
+
+  ⚠️  Los productos (nombre, precio, stock, imagen)
+      se editan desde el PANEL ADMIN en /admin
+      No hace falta tocar el código para editar productos.
+
+
+══════════════════════════════════════════════════════════════
+  7. SECCIÓN MARCAS
+     ARCHIVO: frontend/src/components/Brands.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                         → Dónde está
+  ──────────────────────────────────────────────────────────
+  "Marcas"                              → busca: <div className="label reveal">
+  "Distribuidores de las mejores..."    → busca: section-title
+  "marcas internacionales"              → busca: text-red  (en el h2)
+  "Trabajamos con marcas líderes..."    → busca: section-subtitle
+
+  Lista de marcas (COLUMBIA, NIKE, etc.):
+  → busca: const brands = [
+    Cada objeto { name: 'COLUMBIA' } es una marca.
+    Cambia los nombres o agrega/quita marcas.
+
+
+══════════════════════════════════════════════════════════════
+  8. SECCIÓN SOBRE NOSOTROS
+     ARCHIVO: frontend/src/components/About.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                              → Dónde está
+  ──────────────────────────────────────────────────────────
+  "+5  Años en el mercado"                   → busca: about-img-badge
+                                               <strong>+5</strong> y <span>Años en el mercado</span>
+
+  "Sobre Nosotros"                           → busca: label label-blue
+
+  "Más que un distribuidor,"                 → busca: about-title  (h2, primera línea)
+  "tu socio comercial"                       → busca: text-red  (segunda línea del h2)
+
+  "STAR PERUVIAN nació con la visión..."     → busca: about-text  (primer <p>)
+  "Nuestra red de distribución cubre..."     → busca: about-text  (segundo <p>)
+
+  Lista de 6 características:
+  "Importación directa sin intermediarios"   → busca: about-values  (array de strings)
+  "Precios competitivos por volumen"         → mismo array
+  "Stock permanente garantizado"             → mismo array
+  "Envíos seguros a todo el Perú"            → mismo array
+  "Facturación con boleta y factura"         → mismo array
+  "Atención post-venta dedicada"             → mismo array
+
+  "Contáctanos"                              → busca: btn btn-red  (botón)
+  "Ver productos"                            → busca: btn-outline-red  (botón)
+
+
+══════════════════════════════════════════════════════════════
+  9. SECCIÓN "CÓMO COMPRAR" (fondo azul, 4 pasos)
+     ARCHIVO: frontend/src/components/HowToBuy.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                              → Dónde está
+  ──────────────────────────────────────────────────────────
+  "Cómo Comprar"                             → busca: label label-white
+
+  "Comprar al por mayor es fácil"            → busca: section-title  (h2)
+
+  "Solo necesitas 4 pasos..."                → busca: section-subtitle
+
+  Paso 01: "Contacta por WhatsApp"           → busca: num: '01'
+  Paso 02: "Elige tu pedido"                 → busca: num: '02'
+  Paso 03: "Confirma y paga"                 → busca: num: '03'
+  Paso 04: "Recibe tu pedido"                → busca: num: '04'
+
+  "Empezar mi pedido ahora →"                → busca: Empezar mi pedido
+                                               (también cambia el número wa.me/...)
+
+
+══════════════════════════════════════════════════════════════
+  10. SECCIÓN GALERÍA
+      ARCHIVO: frontend/src/components/Gallery.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible              → Dónde está
+  ──────────────────────────────────────────────────────────
+  "Galería"                  → busca: <div className="label reveal">
+  "Nuestros productos"       → busca: section-title  (h2)
+  "en detalle"               → misma línea del h2
+
+  Las imágenes de la galería → busca: const images = [
+  Cada { src: '/img/...' } es una imagen.
+  Cambia src por la ruta de tu imagen.
+
+
+══════════════════════════════════════════════════════════════
+  11. SECCIÓN TESTIMONIOS
+      ARCHIVO: frontend/src/components/Testimonials.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                         → Dónde está
+  ──────────────────────────────────────────────────────────
+  "Testimonios"                         → busca: <div className="label">
+  "Lo que dicen nuestros clientes"      → busca: section-title  (h2)
+  "Más de 500 revendedores..."          → busca: section-subtitle
+
+  Cada testimonio tiene: initials, name, role, stars, text
+  → busca: const testimonials = [
+
+  Ejemplo del primero:
+    initials: 'MR'   → las letras del círculo de color
+    name: 'María Rodríguez'
+    role: 'Propietaria de tienda, Lima'
+    stars: 5         → número de estrellas (1 al 5)
+    text: 'Llevo 3 años comprando...'
+
+  "Ver más reseñas en Facebook →"       → busca: Ver más reseñas
+                                          (cambia el link de Facebook también)
+
+
+══════════════════════════════════════════════════════════════
+  12. SECCIÓN ENVÍOS
+      ARCHIVO: frontend/src/components/Shipping.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                         → Dónde está
+  ──────────────────────────────────────────────────────────
+  "Envíos"                              → busca: <div className="label">
+  "Llegamos a todo"                     → busca: section-title  (primera línea h2)
+  "el Perú"                             → busca: text-red  (segunda línea h2)
+  "Nuestro sistema logístico..."        → busca: <p style={{ color: 'var(--gray-600)'
+
+  Ítem 1: "🚀 Despacho el mismo día"    → busca: const shippingItems = [  primer objeto
+  Ítem 2: "📍 Cobertura nacional"       → segundo objeto
+  Ítem 3: "🛡️ Envío asegurado"          → tercer objeto
+  Ítem 4: "📱 Seguimiento en tiempo..." → cuarto objeto
+
+  "TRANSPORTISTAS ALIADAS:"             → busca: Transportistas aliadas
+  Lista: Olva, Shalom, Serpost...       → busca: const transportistas = [
+
+  "🗺️ 25 Departamentos"                 → busca: map-badge  (badge sobre el mapa)
+
+
+══════════════════════════════════════════════════════════════
+  13. SECCIÓN CTA FINAL (fondo rojo)
+      ARCHIVO: frontend/src/components/CTASection.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                              → Dónde está
+  ──────────────────────────────────────────────────────────
+  "Empieza hoy mismo"                        → busca: label label-white
+
+  "¿Listo para comprar al por mayor?"        → busca: cta-title  (h2)
+
+  "Únete a más de 500 revendedores..."       → busca: cta-subtitle
+  "Mínimo 12 unidades · Precios..."          → misma línea
+
+  "Contactar por WhatsApp"                   → busca: btn-white
+                                               (cambia número wa.me/...)
+  "Ver Catálogo"                             → busca: btn-outline-white-solid
+
+  Lista de 4 características pequeñas:
+  "Sin costo de envío mínimo"                → busca el array de strings debajo de cta-features
+  "Atención de L-S 9am-8pm"                 → mismo array  ← cambia tu horario
+  "Pago por transferencia o Yape"            → mismo array  ← cambia tus métodos de pago
+  "Factura y boleta electrónica"             → mismo array
+
+
+══════════════════════════════════════════════════════════════
+  14. FOOTER (pie de página)
+      ARCHIVO: frontend/src/components/Footer.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                              → Dónde está
+  ──────────────────────────────────────────────────────────
+  "Importadores y distribuidores..."         → busca: footer-desc  (párrafo)
+
+  Columna "SITIO WEB":
+  Inicio, Productos, Marcas, etc.            → busca: const navLinks = [
+
+  Columna "CATEGORÍAS":
+  Casacas, Chalecos, etc.                    → busca: const categories = [
+
+  Columna "CONTACTO":
+  "+51 999 999 999"                          → busca: +51  (cambia por tu número)
+  "contacto@starperuvian.com"                → busca: contacto@  (cambia tu email)
+  "Lima, Perú"                               → busca: Lima, Perú  (cambia tu ciudad)
+  "Lunes a Sábado 9:00am – 8:00pm"          → busca: Lunes a Sábado  (cambia tu horario)
+
+  Redes sociales (íconos):
+  Instagram link                             → busca: instagram.com/starperuviann
+  Facebook link                              → busca: facebook.com/profile
+  TikTok link                                → busca: tiktok.com/@star_peruvian
+  WhatsApp link                              → busca: wa.me/51974789135
+
+  "© 2024 STAR PERUVIAN..."                  → busca: 2024 STAR PERUVIAN
+  "Política de Privacidad"                   → busca: Política de Privacidad
+  "Términos de Uso"                          → busca: Términos de Uso
+
+
+══════════════════════════════════════════════════════════════
+  15. BOTÓN FLOTANTE DE WHATSAPP
+      ARCHIVO: frontend/src/components/WhatsAppButton.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible              → Dónde está
+  ──────────────────────────────────────────────────────────
+  "¡Escríbenos ahora!"       → busca: whatsapp-tooltip
+  Número de WhatsApp         → busca: wa.me/51974789135  (cambia por el tuyo)
+
+
+══════════════════════════════════════════════════════════════
+  16. PÁGINA DE LOGIN / REGISTRO
+      ARCHIVO: frontend/src/pages/Login.jsx
+══════════════════════════════════════════════════════════════
+
+  Texto visible                    → Dónde está
+  ──────────────────────────────────────────────────────────
+  "Iniciar Sesión" (tab)           → busca: id: 'login', label: 'Iniciar Sesión'
+  "Registrarse" (tab)              → busca: id: 'register', label: 'Registrarse'
+  "Bienvenido de vuelta"           → busca: Bienvenido de vuelta
+  "Crear cuenta"                   → busca: Crear cuenta
+  "Usuario"                        → busca: form-label  (primer label)
+  "Contraseña"                     → busca: form-label  (segundo label)
+  "Iniciar Sesión" (botón)         → busca: Iniciar Sesión  (dentro del botón)
+  "Crear Cuenta" (botón)           → busca: Crear Cuenta
+  "← Volver al sitio web"          → busca: Volver al sitio web
+  "Al registrarte aceptas..."      → busca: Al registrarte
+
+
+══════════════════════════════════════════════════════════════
+  17. TÍTULO DE LA PESTAÑA DEL NAVEGADOR (SEO)
+      ARCHIVO: frontend/index.html
+══════════════════════════════════════════════════════════════
+
+  Texto visible                              → Dónde está
+  ──────────────────────────────────────────────────────────
+  Título de la pestaña:
+  "STAR PERUVIAN | Importadores..."          → busca: <title>
+
+  Descripción en Google:
+  "Distribuimos productos al por mayor..."   → busca: <meta name="description"
+
+  Palabras clave para buscadores:
+  "mayorista peru, distribuidor..."          → busca: <meta name="keywords"
+
+
+══════════════════════════════════════════════════════════════
+  ★ NÚMERO DE WHATSAPP — CAMBIO GLOBAL
+══════════════════════════════════════════════════════════════
+
+  El número 51974789135 aparece en ESTOS archivos.
+  Cámbialo en todos si cambias de número:
+
+  1. frontend/src/components/Hero.jsx         → wa.me/51974789135
+  2. frontend/src/components/About.jsx        → wa.me/51974789135
+  3. frontend/src/components/HowToBuy.jsx     → wa.me/51974789135
+  4. frontend/src/components/Products.jsx     → wa.me/51974789135 (o 51999999999)
+  5. frontend/src/components/CTASection.jsx   → wa.me/51974789135
+  6. frontend/src/components/Footer.jsx       → wa.me/51974789135
+  7. frontend/src/components/WhatsAppButton.jsx → wa.me/51974789135
+  8. frontend/src/components/Navbar.jsx       → wa.me/51974789135
+
+
+══════════════════════════════════════════════════════════════
+  ★ COLORES DEL SITIO
+     ARCHIVO: frontend/src/index.css
+══════════════════════════════════════════════════════════════
+
+  Para cambiar los colores del sitio busca:
+    --red: #E30613;       ← color rojo principal
+    --blue: #1E3A8A;      ← color azul principal
+    --white: #FFFFFF;     ← blanco
+
+  Cambia los valores hexadecimales por tus colores.
+
+
+══════════════════════════════════════════════════════════════
+  ★ IMÁGENES DEL SITIO
+══════════════════════════════════════════════════════════════
+
+  Para cambiar imágenes, pon tus fotos en la carpeta:
+    star-peruvian-page/img/
+
+  Luego actualiza las rutas en los archivos:
+  - About.jsx     → src="/img/TU-FOTO.jpg"
+  - Gallery.jsx   → busca: const images = [
+  - Products.jsx  → los productos demo usan imágenes de /img/
+
+  Los productos reales se gestionan desde el panel /admin
+
+
+══════════════════════════════════════════════════════════════
+  ★ VIDEO DE FONDO
+     ARCHIVO: frontend/src/components/Hero.jsx
+══════════════════════════════════════════════════════════════
+
+  Para cambiar el video:
+  1. Pon tu nuevo video en la carpeta: star-peruvian-page/video/
+  2. En Hero.jsx busca: src="/video/fondo-video.mp4"
+  3. Cambia "fondo-video.mp4" por el nombre de tu nuevo video
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FIN DE LA GUÍA — star-peruvian-page/GUIA-DE-TEXTOS.txt
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

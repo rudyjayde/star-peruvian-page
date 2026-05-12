@@ -1,0 +1,543 @@
+import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
+
+const DEFAULT_CATEGORIES = ['Casacas', 'Chalecos', 'Pantalones', 'Camisas', 'Accesorios', 'Calzado', 'Ropa']
+
+const EMPTY_FORM = {
+  name: '',
+  category: 'Casacas',
+  price: '',
+  stock: '',
+  minOrder: 12,
+  description: '',
+  active: true,
+}
+
+export default function Admin() {
+  const { user, logout } = useAuth()
+  const [activeTab, setActiveTab] = useState('products')
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [customCategories, setCustomCategories] = useState(() => {
+    const saved = localStorage.getItem('sp_custom_categories')
+    return saved ? JSON.parse(saved) : []
+  })
+  const [newCategoryInput, setNewCategoryInput] = useState('')
+  const [showNewCategory, setShowNewCategory] = useState(false)
+  const fileRef = useRef()
+
+  const allCategories = [...DEFAULT_CATEGORIES, ...customCategories]
+
+  const addCustomCategory = () => {
+    const name = newCategoryInput.trim()
+    if (!name || allCategories.includes(name)) return
+    const updated = [...customCategories, name]
+    setCustomCategories(updated)
+    localStorage.setItem('sp_custom_categories', JSON.stringify(updated))
+    setForm(f => ({ ...f, category: name }))
+    setNewCategoryInput('')
+    setShowNewCategory(false)
+  }
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const fetchProducts = async () => {
+    setLoading(true)
+    try {
+      const res = await axios.get('/api/products')
+      setProducts(res.data)
+    } catch {
+      setProducts([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openModal = (product = null) => {
+    if (product) {
+      setEditingProduct(product)
+      setForm({
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        stock: product.stock,
+        minOrder: product.minOrder || 12,
+        description: product.description || '',
+        active: product.active !== false,
+      })
+      setImagePreview(product.images?.[0] || null)
+    } else {
+      setEditingProduct(null)
+      setForm(EMPTY_FORM)
+      setImagePreview(null)
+    }
+    setImageFile(null)
+    setShowModal(true)
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => setImagePreview(reader.result)
+    reader.readAsDataURL(file)
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      let imageUrl = editingProduct?.images?.[0] || ''
+
+      if (imageFile) {
+        const fd = new FormData()
+        fd.append('image', imageFile)
+        const res = await axios.post('/api/upload', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        imageUrl = res.data.url
+      }
+
+      const payload = {
+        ...form,
+        price: Number(form.price),
+        stock: Number(form.stock),
+        minOrder: Number(form.minOrder),
+        images: imageUrl ? [imageUrl] : [],
+      }
+
+      if (editingProduct) {
+        await axios.put(`/api/products/${editingProduct._id}`, payload)
+      } else {
+        await axios.post('/api/products', payload)
+      }
+
+      await fetchProducts()
+      setShowModal(false)
+    } catch (err) {
+      alert('Error al guardar: ' + (err.response?.data?.message || err.message))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`/api/products/${id}`)
+      await fetchProducts()
+      setDeleteConfirm(null)
+    } catch (err) {
+      alert('Error al eliminar: ' + (err.response?.data?.message || err.message))
+    }
+  }
+
+  const stats = {
+    total: products.length,
+    active: products.filter(p => p.active !== false).length,
+    outOfStock: products.filter(p => p.stock === 0).length,
+    categories: [...new Set(products.map(p => p.category))].length,
+  }
+
+  const navItems = [
+    { id: 'products', icon: '📦', label: 'Productos' },
+    { id: 'stats', icon: '📊', label: 'Estadísticas' },
+  ]
+
+  return (
+    <div className="admin-layout">
+      {/* Sidebar */}
+      <aside className="admin-sidebar">
+        <div className="admin-sidebar-logo">
+          <img src="/img/logo ACTUALIZADO.png" alt="STAR PERUVIAN" onError={e => { e.target.style.display = 'none' }} />
+          <p>Panel Administrativo</p>
+        </div>
+        <nav className="admin-nav">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              className={`admin-nav-item ${activeTab === item.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(item.id)}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+          <Link to="/" className="admin-nav-item" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>🌐</span> Ver Sitio Web
+          </Link>
+        </nav>
+        <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+            Sesión: <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{user?.username}</strong>
+          </div>
+          <button className="admin-nav-item" onClick={logout} style={{ color: 'rgba(239,68,68,0.8)', width: '100%' }}>
+            <span>🚪</span> Cerrar Sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="admin-main">
+        <div className="admin-topbar">
+          <div className="admin-topbar-title">
+            {activeTab === 'products' ? 'Gestión de Productos' : 'Estadísticas'}
+          </div>
+          <div className="admin-topbar-actions">
+            {activeTab === 'products' && (
+              <button className="btn btn-red btn-sm" onClick={() => openModal()}>
+                + Nuevo Producto
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="admin-content">
+          {/* Stats Row */}
+          <div className="admin-stats-row">
+            {[
+              { label: 'Total Productos', value: stats.total, color: '' },
+              { label: 'Activos', value: stats.active, color: '' },
+              { label: 'Sin Stock', value: stats.outOfStock, color: 'red' },
+              { label: 'Categorías', value: stats.categories, color: '' },
+            ].map(s => (
+              <div key={s.label} className="admin-stat-card">
+                <div className="admin-stat-label">{s.label}</div>
+                <div className={`admin-stat-value ${s.color}`}>{loading ? '–' : s.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Products Table */}
+          {activeTab === 'products' && (
+            <div className="admin-panel-card">
+              <div className="admin-panel-header">
+                <h3>Productos ({products.length})</h3>
+                <button className="btn btn-outline-red btn-sm" onClick={fetchProducts}>
+                  ↻ Actualizar
+                </button>
+              </div>
+              {loading ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-400)' }}>
+                  Cargando productos...
+                </div>
+              ) : products.length === 0 ? (
+                <div className="empty-state">
+                  <p>No hay productos aún. ¡Agrega el primero!</p>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Imagen</th>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Precio/Doc.</th>
+                        <th>Stock</th>
+                        <th>Mín.</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {products.map(p => (
+                        <tr key={p._id}>
+                          <td>
+                            <img
+                              src={p.images?.[0] || '/img/logo ACTUALIZADO.png'}
+                              alt={p.name}
+                              className="admin-product-img"
+                              onError={e => { e.target.src = '/img/logo ACTUALIZADO.png'; e.target.style.objectFit = 'contain'; e.target.style.padding = '4px' }}
+                            />
+                          </td>
+                          <td style={{ fontWeight: 600, maxWidth: 180 }}>{p.name}</td>
+                          <td>
+                            <span style={{ background: 'var(--off-white)', padding: '3px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600 }}>
+                              {p.category}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 700, color: 'var(--red)' }}>S/ {p.price}</td>
+                          <td>
+                            <span style={{ fontWeight: 600, color: p.stock > 0 ? 'var(--text)' : 'var(--gray-400)' }}>
+                              {p.stock}
+                            </span>
+                          </td>
+                          <td style={{ color: 'var(--gray-600)' }}>{p.minOrder || 12}u</td>
+                          <td>
+                            <span className={p.active !== false ? 'badge-active' : 'badge-inactive'}>
+                              {p.active !== false ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button className="btn-icon" onClick={() => openModal(p)} title="Editar">✏️</button>
+                              <button className="btn-icon danger" onClick={() => setDeleteConfirm(p._id)} title="Eliminar">🗑️</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'stats' && (
+            <div style={{ padding: '20px 0' }}>
+              <div className="admin-panel-card" style={{ padding: 32 }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, marginBottom: 24 }}>
+                  Resumen del Negocio
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
+                  {[
+                    { label: 'Categorías activas', value: stats.categories },
+                    { label: 'Productos con stock', value: stats.active - stats.outOfStock },
+                    { label: 'Total productos', value: stats.total },
+                    { label: 'Productos sin stock', value: stats.outOfStock },
+                  ].map(s => (
+                    <div key={s.label} style={{ padding: 20, background: 'var(--off-white)', borderRadius: 'var(--radius-lg)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{s.label}</div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 800, color: 'var(--text)' }}>{s.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Product Modal */}
+      {showModal && (
+        <div className="admin-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}>
+          <div className="admin-modal">
+            <h2 className="admin-modal-title">
+              {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+            </h2>
+            <form onSubmit={handleSave}>
+              <div className="form-group">
+                <label className="form-label">Nombre del producto *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Ej: Casaca Invierno Premium"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Categoría *</label>
+                  {showNewCategory ? (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Ej: Zapatillas"
+                        value={newCategoryInput}
+                        onChange={e => setNewCategoryInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCustomCategory())}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-red btn-sm"
+                        onClick={addCustomCategory}
+                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        Agregar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => { setShowNewCategory(false); setNewCategoryInput('') }}
+                        style={{ border: '1px solid var(--gray-200)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      className="form-select"
+                      value={form.category}
+                      onChange={e => {
+                        if (e.target.value === '__new__') {
+                          setShowNewCategory(true)
+                          setForm(f => ({ ...f, category: allCategories[0] }))
+                        } else {
+                          setForm(f => ({ ...f, category: e.target.value }))
+                        }
+                      }}
+                      required
+                    >
+                      {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                      <option disabled>──────────</option>
+                      <option value="__new__">+ Nueva categoría...</option>
+                    </select>
+                  )}
+                  {!showNewCategory && (
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCategory(true)}
+                      style={{ marginTop: 6, fontSize: 12, color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}
+                    >
+                      + Crear nueva categoría
+                    </button>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Estado</label>
+                  <select
+                    className="form-select"
+                    value={form.active ? 'active' : 'inactive'}
+                    onChange={e => setForm(f => ({ ...f, active: e.target.value === 'active' }))}
+                  >
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Precio por docena (S/) *</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="240"
+                    min="0"
+                    step="0.01"
+                    value={form.price}
+                    onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Stock disponible *</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="120"
+                    min="0"
+                    value={form.stock}
+                    onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Mínimo de compra (unidades)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="12"
+                  min="1"
+                  value={form.minOrder}
+                  onChange={e => setForm(f => ({ ...f, minOrder: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Descripción</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Describe el producto..."
+                  value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Imagen del producto</label>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleImageChange}
+                />
+                <div
+                  className="upload-zone"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="preview" style={{ height: 120, margin: '0 auto', objectFit: 'contain', borderRadius: 8 }} />
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 32 }}>📷</div>
+                      <div className="upload-zone-text">
+                        <strong>Haz clic para subir</strong> o arrastra tu imagen aquí<br />
+                        <span style={{ fontSize: 12 }}>JPG, PNG, WEBP — máx. 5MB</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {imagePreview && (
+                  <button
+                    type="button"
+                    style={{ marginTop: 8, fontSize: 13, color: 'var(--red)', cursor: 'pointer', background: 'none', border: 'none' }}
+                    onClick={() => { setImagePreview(null); setImageFile(null) }}
+                  >
+                    ✕ Quitar imagen
+                  </button>
+                )}
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-outline-red btn-sm"
+                  onClick={() => setShowModal(false)}
+                  disabled={saving}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-red" disabled={saving}>
+                  {saving ? 'Guardando...' : editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm */}
+      {deleteConfirm && (
+        <div className="admin-modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="admin-modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+            <h2 className="admin-modal-title" style={{ color: 'var(--red)' }}>
+              ¿Eliminar producto?
+            </h2>
+            <p style={{ color: 'var(--gray-600)', marginBottom: 24 }}>
+              Esta acción no se puede deshacer. El producto será eliminado permanentemente.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button className="btn btn-outline-red btn-sm" onClick={() => setDeleteConfirm(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-red btn-sm" onClick={() => handleDelete(deleteConfirm)}>
+                Sí, eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

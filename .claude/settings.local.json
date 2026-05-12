@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(md|txt|json\\)$|^d\")",
+      "Bash(npm install *)",
+      "Bash(npx vite *)"
+    ]
+  }
+}
