@@ -2,16 +2,20 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
+import { getFirstImageSrc, normalizeImageList, normalizeTextList } from '../utils/assetUrl'
 
 const DEFAULT_CATEGORIES = ['Casacas', 'Chalecos', 'Pantalones', 'Camisas', 'Accesorios', 'Calzado', 'Ropa']
 
 const EMPTY_FORM = {
   name: '',
   category: 'Casacas',
+  brand: '',
   price: '',
   stock: '',
   minOrder: 12,
   description: '',
+  colors: '',
+  sizes: '',
   active: true,
 }
 
@@ -23,8 +27,7 @@ export default function Admin() {
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [imageFile, setImageFile] = useState(null)
-  const [imagePreview, setImagePreview] = useState(null)
+  const [imageEntries, setImageEntries] = useState([])
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [customCategories, setCustomCategories] = useState(() => {
@@ -36,6 +39,14 @@ export default function Admin() {
   const fileRef = useRef()
 
   const allCategories = [...DEFAULT_CATEGORIES, ...customCategories]
+  const brandOptions = [...new Set(products.map(product => String(product.brand || '').trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right))
+  const getProductId = (product) => product?.id ?? product?._id
+  const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 
   const addCustomCategory = () => {
     const name = newCategoryInput.trim()
@@ -55,7 +66,7 @@ export default function Admin() {
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      const res = await axios.get('/api/products')
+      const res = await axios.get('/api/products/all')
       setProducts(res.data)
     } catch {
       setProducts([])
@@ -70,56 +81,66 @@ export default function Admin() {
       setForm({
         name: product.name,
         category: product.category,
+        brand: product.brand || '',
         price: product.price,
         stock: product.stock,
         minOrder: product.minOrder || 12,
         description: product.description || '',
+        colors: normalizeTextList(product.colors).join(', '),
+        sizes: normalizeTextList(product.sizes).join(', '),
         active: product.active !== false,
       })
-      setImagePreview(product.images?.[0] || null)
+      setImageEntries(normalizeImageList(product.images).map(src => ({ type: 'existing', src })))
     } else {
       setEditingProduct(null)
       setForm(EMPTY_FORM)
-      setImagePreview(null)
+      setImageEntries([])
     }
-    setImageFile(null)
     setShowModal(true)
   }
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    setImageFile(file)
-    const reader = new FileReader()
-    reader.onloadend = () => setImagePreview(reader.result)
-    reader.readAsDataURL(file)
+  const handleImageChange = async (e) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const newEntries = await Promise.all(files.map(async (file) => ({
+      type: 'new',
+      file,
+      src: await readFileAsDataUrl(file),
+    })))
+
+    setImageEntries(entries => [...entries, ...newEntries])
+    e.target.value = ''
   }
 
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
     try {
-      let imageUrl = editingProduct?.images?.[0] || ''
-
-      if (imageFile) {
+      const existingImages = imageEntries.filter(entry => entry.type === 'existing').map(entry => entry.src)
+      const newEntries = imageEntries.filter(entry => entry.type === 'new')
+      const uploadedImages = await Promise.all(newEntries.map(async (entry) => {
         const fd = new FormData()
-        fd.append('image', imageFile)
+        fd.append('image', entry.file)
         const res = await axios.post('/api/upload', fd, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
-        imageUrl = res.data.url
-      }
+        return res.data.url
+      }))
 
       const payload = {
         ...form,
         price: Number(form.price),
         stock: Number(form.stock),
         minOrder: Number(form.minOrder),
-        images: imageUrl ? [imageUrl] : [],
+        brand: form.brand.trim(),
+        colors: normalizeTextList(form.colors),
+        sizes: normalizeTextList(form.sizes),
+        images: [...existingImages, ...uploadedImages],
       }
 
       if (editingProduct) {
-        await axios.put(`/api/products/${editingProduct._id}`, payload)
+        await axios.put(`/api/products/${getProductId(editingProduct)}`, payload)
       } else {
         await axios.post('/api/products', payload)
       }
@@ -134,6 +155,10 @@ export default function Admin() {
   }
 
   const handleDelete = async (id) => {
+    if (!id) {
+      alert('No se pudo eliminar: el producto no tiene ID válido.')
+      return
+    }
     try {
       await axios.delete(`/api/products/${id}`)
       await fetchProducts()
@@ -243,6 +268,7 @@ export default function Admin() {
                       <tr>
                         <th>Imagen</th>
                         <th>Nombre</th>
+                        <th>Marca</th>
                         <th>Categoría</th>
                         <th>Precio/Doc.</th>
                         <th>Stock</th>
@@ -253,16 +279,21 @@ export default function Admin() {
                     </thead>
                     <tbody>
                       {products.map(p => (
-                        <tr key={p._id}>
+                        <tr key={getProductId(p)}>
                           <td>
                             <img
-                              src={p.images?.[0] || '/img/logo ACTUALIZADO.png'}
+                              src={getFirstImageSrc(p.images) || '/img/logo ACTUALIZADO.png'}
                               alt={p.name}
                               className="admin-product-img"
                               onError={e => { e.target.src = '/img/logo ACTUALIZADO.png'; e.target.style.objectFit = 'contain'; e.target.style.padding = '4px' }}
                             />
                           </td>
                           <td style={{ fontWeight: 600, maxWidth: 180 }}>{p.name}</td>
+                          <td>
+                            <span style={{ background: 'var(--off-white)', padding: '3px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600 }}>
+                              {p.brand || 'Sin marca'}
+                            </span>
+                          </td>
                           <td>
                             <span style={{ background: 'var(--off-white)', padding: '3px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600 }}>
                               {p.category}
@@ -283,7 +314,7 @@ export default function Admin() {
                           <td>
                             <div style={{ display: 'flex', gap: 6 }}>
                               <button className="btn-icon" onClick={() => openModal(p)} title="Editar">✏️</button>
-                              <button className="btn-icon danger" onClick={() => setDeleteConfirm(p._id)} title="Eliminar">🗑️</button>
+                              <button className="btn-icon danger" onClick={() => setDeleteConfirm(getProductId(p))} title="Eliminar">🗑️</button>
                             </div>
                           </td>
                         </tr>
@@ -341,6 +372,29 @@ export default function Admin() {
               </div>
 
               <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Marca</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Ej: PUMA"
+                    list="brand-options"
+                    value={form.brand}
+                    onChange={e => setForm(f => ({ ...f, brand: e.target.value }))}
+                  />
+                  <datalist id="brand-options">
+                    {brandOptions.map(brand => (
+                      <option key={brand} value={brand} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, brand: '' }))}
+                    style={{ marginTop: 6, fontSize: 12, color: 'var(--gray-500)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}
+                  >
+                    + Limpiar marca
+                  </button>
+                </div>
                 <div className="form-group">
                   <label className="form-label">Categoría *</label>
                   {showNewCategory ? (
@@ -463,12 +517,36 @@ export default function Admin() {
                 />
               </div>
 
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Colores disponibles</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Negro, Blanco, Rojo"
+                    value={form.colors}
+                    onChange={e => setForm(f => ({ ...f, colors: e.target.value }))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Tallas disponibles</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="S, M, L, XL"
+                    value={form.sizes}
+                    onChange={e => setForm(f => ({ ...f, sizes: e.target.value }))}
+                  />
+                </div>
+              </div>
+
               <div className="form-group">
-                <label className="form-label">Imagen del producto</label>
+                <label className="form-label">Imágenes del producto</label>
                 <input
                   ref={fileRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   style={{ display: 'none' }}
                   onChange={handleImageChange}
                 />
@@ -476,27 +554,41 @@ export default function Admin() {
                   className="upload-zone"
                   onClick={() => fileRef.current?.click()}
                 >
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="preview" style={{ height: 120, margin: '0 auto', objectFit: 'contain', borderRadius: 8 }} />
+                  {imageEntries.length > 0 ? (
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 10, marginBottom: 12 }}>
+                        {imageEntries.map((entry, index) => (
+                          <div key={`${entry.type}-${index}`} style={{ position: 'relative', border: '1px solid var(--gray-200)', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
+                            <img src={entry.src} alt={`preview-${index + 1}`} style={{ width: '100%', height: 96, objectFit: 'cover', display: 'block' }} />
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setImageEntries(entries => entries.filter((_, currentIndex) => currentIndex !== index))
+                              }}
+                              style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.72)', color: 'white', cursor: 'pointer' }}
+                              aria-label="Quitar imagen"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="upload-zone-text">
+                        <strong>Haz clic para agregar más imágenes</strong><br />
+                        <span style={{ fontSize: 12 }}>Puedes subir varias fotos para mostrar colores, tallas o vistas del producto</span>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <div style={{ fontSize: 32 }}>📷</div>
                       <div className="upload-zone-text">
-                        <strong>Haz clic para subir</strong> o arrastra tu imagen aquí<br />
+                        <strong>Haz clic para subir</strong> o arrastra tus imágenes aquí<br />
                         <span style={{ fontSize: 12 }}>JPG, PNG, WEBP — máx. 5MB</span>
                       </div>
                     </>
                   )}
                 </div>
-                {imagePreview && (
-                  <button
-                    type="button"
-                    style={{ marginTop: 8, fontSize: 13, color: 'var(--red)', cursor: 'pointer', background: 'none', border: 'none' }}
-                    onClick={() => { setImagePreview(null); setImageFile(null) }}
-                  >
-                    ✕ Quitar imagen
-                  </button>
-                )}
               </div>
 
               <div className="modal-actions">

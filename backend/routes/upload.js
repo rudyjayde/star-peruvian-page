@@ -3,6 +3,7 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 const authMiddleware = require('../middleware/auth')
+const { toPublicUrl } = require('../utils/publicUrl')
 
 const uploadDir = path.join(__dirname, '../uploads')
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
@@ -33,8 +34,12 @@ router.post('/', authMiddleware, upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No se recibió ninguna imagen' })
   }
-  const url = `/uploads/${req.file.filename}`
-  res.json({ url, filename: req.file.filename })
+  const url = toPublicUrl(req, `/uploads/${req.file.filename}`)
+  res.json({
+    url,
+    path: `/uploads/${req.file.filename}`,
+    filename: req.file.filename,
+  })
 })
 
 module.exports = router
