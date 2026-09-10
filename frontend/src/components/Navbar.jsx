@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Settings, LogOut, ChevronDown, User, ShieldCheck } from 'lucide-react'
+import axios from 'axios'
+import { Settings, LogOut, ChevronDown, User, ShieldCheck, ShoppingCart } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useCart } from '../context/CartContext'
 
 const links = [
   { label: 'Inicio', href: '#inicio' },
@@ -12,13 +14,134 @@ const links = [
   { label: 'Contacto', href: '#contacto' },
 ]
 
+const selectCategory = (slug) => {
+  window.dispatchEvent(new CustomEvent('sp-select-category', { detail: { slug } }))
+}
+
+function CategoryItem({ category, onSelect }) {
+  const [open, setOpen] = useState(false)
+  const hasChildren = category.children?.length > 0
+
+  return (
+    <div
+      style={{ position: 'relative' }}
+      onMouseEnter={() => hasChildren && setOpen(true)}
+      onMouseLeave={() => hasChildren && setOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => onSelect(category.slug)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          padding: '10px 16px',
+          fontSize: 14,
+          fontWeight: 500,
+          color: 'var(--text)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+          fontFamily: 'var(--font-body)',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--off-white)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        {category.name}
+        {hasChildren && <ChevronDown size={13} style={{ transform: 'rotate(-90deg)' }} />}
+      </button>
+      {hasChildren && open && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: '100%',
+          background: 'white',
+          borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-lg)',
+          border: '1px solid var(--gray-200)',
+          minWidth: 180,
+          overflow: 'hidden',
+        }}>
+          {category.children.map(child => (
+            <CategoryItem key={child.slug} category={child} onSelect={onSelect} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CategoriesMenu({ scrolled }) {
+  const [categories, setCategories] = useState([])
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    axios.get('/api/categories').then(res => setCategories(res.data)).catch(() => setCategories([]))
+  }, [])
+
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  if (categories.length === 0) return null
+
+  const handleSelect = (slug) => {
+    selectCategory(slug)
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className="nav-link"
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit' }}
+      >
+        Categorías
+        <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'var(--transition-fast)' }} />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 12px)',
+          left: 0,
+          background: 'white',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-lg)',
+          border: '1px solid var(--gray-200)',
+          minWidth: 200,
+          overflow: 'visible',
+          zIndex: 1001,
+          padding: '6px 0',
+        }}>
+          {categories.map(category => (
+            <CategoryItem key={category.slug} category={category} onSelect={handleSelect} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [mobileCategories, setMobileCategories] = useState([])
   const { user, logout } = useAuth()
+  const { count } = useCart()
   const location = useLocation()
   const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    axios.get('/api/categories').then(res => setMobileCategories(res.data)).catch(() => setMobileCategories([]))
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
@@ -85,6 +208,7 @@ export default function Navbar() {
 
           {/* Desktop links */}
           <div className="navbar-links">
+            <CategoriesMenu scrolled={scrolled} />
             {links.map(l => (
               <a key={l.label} href={l.href} className="nav-link" onClick={e => handleNavClick(e, l.href)}>
                 {l.label}
@@ -94,6 +218,41 @@ export default function Navbar() {
 
           {/* Desktop right actions */}
           <div className="navbar-cta">
+            <Link
+              to="/carrito"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                color: scrolled ? 'var(--text)' : 'white',
+              }}
+              aria-label="Carrito"
+            >
+              <ShoppingCart size={20} />
+              {count > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  background: 'var(--red)',
+                  color: 'white',
+                  borderRadius: '50%',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  width: 16,
+                  height: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {count > 9 ? '9+' : count}
+                </span>
+              )}
+            </Link>
             {user ? (
               <div ref={dropdownRef} style={{ position: 'relative' }}>
                 <button
@@ -243,6 +402,23 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       <div className={`mobile-menu ${menuOpen ? 'open' : ''}`}>
+        {mobileCategories.length > 0 && (
+          <div style={{ padding: '8px 0 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 8 }}>
+            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, marginBottom: 8 }}>
+              Categorías
+            </div>
+            {mobileCategories.map(category => (
+              <button
+                key={category.slug}
+                className="mobile-nav-link"
+                style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}
+                onClick={() => { selectCategory(category.slug); setMenuOpen(false) }}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        )}
         {links.map(l => (
           <a key={l.label} href={l.href} className="mobile-nav-link" onClick={e => handleNavClick(e, l.href)}>
             {l.label}

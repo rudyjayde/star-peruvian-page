@@ -1,8 +1,8 @@
 const router = require('express').Router()
-const { Op } = require('sequelize')
-const Product = require('../models/Product')
+const { Product, Category } = require('../models')
 const authMiddleware = require('../middleware/auth')
 const { toPublicUrl } = require('../utils/publicUrl')
+const { collectDescendantIds } = require('../utils/categoryTree')
 
 const normalizeBrand = (value) => String(value || '').trim().replace(/\s+/g, ' ').toUpperCase()
 
@@ -41,17 +41,23 @@ const normalizeTextList = (value) => {
   return []
 }
 
+// `category` stays a plain string in the response (the name) so the existing
+// frontend display/sort code keeps working untouched; categoryId/categorySlug
+// are the new fields real filtering and the admin form use.
 const serializeProduct = (product, req) => {
   const data = product.get({ plain: true })
   data.images = normalizeImages(data.images).map(image => toPublicUrl(req, image))
   data.colors = normalizeTextList(data.colors)
   data.sizes = normalizeTextList(data.sizes)
   data.brand = normalizeBrand(data.brand)
+  data.category = data.Category?.name || ''
+  data.categorySlug = data.Category?.slug || ''
+  delete data.Category
   return data
 }
 
 const publicProductOrder = [
-  ['category', 'ASC'],
+  ['categoryId', 'ASC'],
   ['brand', 'ASC'],
   ['name', 'ASC'],
   ['createdAt', 'DESC'],
@@ -61,11 +67,18 @@ const publicProductOrder = [
 router.get('/', async (req, res) => {
   try {
     const where = { active: true }
-    if (req.query.category) where.category = req.query.category
+
+    if (req.query.category) {
+      const category = await Category.findOne({ where: { slug: req.query.category } })
+      if (!category) return res.json([])
+      const all = await Category.findAll()
+      where.categoryId = collectDescendantIds(all, category.id)
+    }
     if (req.query.brand) where.brand = normalizeBrand(req.query.brand)
 
     const products = await Product.findAll({
       where,
+      include: [{ model: Category, attributes: ['name', 'slug'] }],
       order: publicProductOrder,
     })
     res.json(products.map(product => serializeProduct(product, req)))
@@ -77,7 +90,10 @@ router.get('/', async (req, res) => {
 // GET all products for admin (protected)
 router.get('/all', authMiddleware, async (req, res) => {
   try {
-    const products = await Product.findAll({ order: [['createdAt', 'DESC']] })
+    const products = await Product.findAll({
+      include: [{ model: Category, attributes: ['name', 'slug'] }],
+      order: [['createdAt', 'DESC']],
+    })
     res.json(products.map(product => serializeProduct(product, req)))
   } catch (err) {
     res.status(500).json({ message: 'Error al obtener productos' })
@@ -87,7 +103,9 @@ router.get('/all', authMiddleware, async (req, res) => {
 // GET single product
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id)
+    const product = await Product.findByPk(req.params.id, {
+      include: [{ model: Category, attributes: ['name', 'slug'] }],
+    })
     if (!product) return res.status(404).json({ message: 'Producto no encontrado' })
     res.json(serializeProduct(product, req))
   } catch (err) {
@@ -102,8 +120,11 @@ router.post('/', authMiddleware, async (req, res) => {
     payload.brand = normalizeBrand(payload.brand)
     payload.colors = normalizeTextList(payload.colors)
     payload.sizes = normalizeTextList(payload.sizes)
+    payload.categoryId = Number(req.body.categoryId)
+    delete payload.category
     const product = await Product.create(payload)
-    res.status(201).json(serializeProduct(product, req))
+    const withCategory = await Product.findByPk(product.id, { include: [{ model: Category, attributes: ['name', 'slug'] }] })
+    res.status(201).json(serializeProduct(withCategory, req))
   } catch (err) {
     res.status(400).json({ message: err.message })
   }
@@ -118,8 +139,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
     payload.brand = normalizeBrand(payload.brand)
     payload.colors = normalizeTextList(payload.colors)
     payload.sizes = normalizeTextList(payload.sizes)
+    if (req.body.categoryId) payload.categoryId = Number(req.body.categoryId)
+    delete payload.category
     await product.update(payload)
-    res.json(serializeProduct(product, req))
+    const withCategory = await Product.findByPk(product.id, { include: [{ model: Category, attributes: ['name', 'slug'] }] })
+    res.json(serializeProduct(withCategory, req))
   } catch (err) {
     res.status(400).json({ message: err.message })
   }

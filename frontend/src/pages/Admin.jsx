@@ -4,11 +4,9 @@ import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import { getFirstImageSrc, normalizeImageList, normalizeTextList } from '../utils/assetUrl'
 
-const DEFAULT_CATEGORIES = ['Casacas', 'Chalecos', 'Pantalones', 'Camisas', 'Accesorios', 'Calzado', 'Ropa']
-
 const EMPTY_FORM = {
   name: '',
-  category: 'Casacas',
+  categoryId: '',
   brand: '',
   price: '',
   stock: '',
@@ -18,6 +16,14 @@ const EMPTY_FORM = {
   sizes: '',
   active: true,
 }
+
+// Turns the category tree into a flat list for the <select>, prefixing
+// children with dashes so the hierarchy stays visible.
+const flattenCategories = (nodes, depth = 0) =>
+  nodes.flatMap(node => [
+    { id: node.id, label: `${'— '.repeat(depth)}${node.name}` },
+    ...flattenCategories(node.children || [], depth + 1),
+  ])
 
 export default function Admin() {
   const { user, logout } = useAuth()
@@ -30,15 +36,13 @@ export default function Admin() {
   const [imageEntries, setImageEntries] = useState([])
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
-  const [customCategories, setCustomCategories] = useState(() => {
-    const saved = localStorage.getItem('sp_custom_categories')
-    return saved ? JSON.parse(saved) : []
-  })
-  const [newCategoryInput, setNewCategoryInput] = useState('')
+  const [categoryTree, setCategoryTree] = useState([])
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryParentId, setNewCategoryParentId] = useState('')
   const [showNewCategory, setShowNewCategory] = useState(false)
   const fileRef = useRef()
 
-  const allCategories = [...DEFAULT_CATEGORIES, ...customCategories]
+  const flatCategories = flattenCategories(categoryTree)
   const brandOptions = [...new Set(products.map(product => String(product.brand || '').trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right))
   const getProductId = (product) => product?.id ?? product?._id
   const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -48,19 +52,36 @@ export default function Admin() {
     reader.readAsDataURL(file)
   })
 
-  const addCustomCategory = () => {
-    const name = newCategoryInput.trim()
-    if (!name || allCategories.includes(name)) return
-    const updated = [...customCategories, name]
-    setCustomCategories(updated)
-    localStorage.setItem('sp_custom_categories', JSON.stringify(updated))
-    setForm(f => ({ ...f, category: name }))
-    setNewCategoryInput('')
-    setShowNewCategory(false)
+  const fetchCategories = async () => {
+    try {
+      const res = await axios.get('/api/categories')
+      setCategoryTree(res.data)
+    } catch {
+      setCategoryTree([])
+    }
+  }
+
+  const addCategory = async () => {
+    const name = newCategoryName.trim()
+    if (!name) return
+    try {
+      const res = await axios.post('/api/categories', {
+        name,
+        parentId: newCategoryParentId || null,
+      })
+      await fetchCategories()
+      setForm(f => ({ ...f, categoryId: res.data.id }))
+      setNewCategoryName('')
+      setNewCategoryParentId('')
+      setShowNewCategory(false)
+    } catch (err) {
+      alert('Error al crear categoría: ' + (err.response?.data?.message || err.message))
+    }
   }
 
   useEffect(() => {
     fetchProducts()
+    fetchCategories()
   }, [])
 
   const fetchProducts = async () => {
@@ -80,7 +101,7 @@ export default function Admin() {
       setEditingProduct(product)
       setForm({
         name: product.name,
-        category: product.category,
+        categoryId: product.categoryId,
         brand: product.brand || '',
         price: product.price,
         stock: product.stock,
@@ -115,6 +136,10 @@ export default function Admin() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    if (!form.categoryId) {
+      alert('Selecciona una categoría')
+      return
+    }
     setSaving(true)
     try {
       const existingImages = imageEntries.filter(entry => entry.type === 'existing').map(entry => entry.src)
@@ -130,6 +155,7 @@ export default function Admin() {
 
       const payload = {
         ...form,
+        categoryId: Number(form.categoryId),
         price: Number(form.price),
         stock: Number(form.stock),
         minOrder: Number(form.minOrder),
@@ -398,50 +424,47 @@ export default function Admin() {
                 <div className="form-group">
                   <label className="form-label">Categoría *</label>
                   {showNewCategory ? (
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <input
                         type="text"
                         className="form-input"
                         placeholder="Ej: Zapatillas"
-                        value={newCategoryInput}
-                        onChange={e => setNewCategoryInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCustomCategory())}
+                        value={newCategoryName}
+                        onChange={e => setNewCategoryName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCategory())}
                         autoFocus
                       />
-                      <button
-                        type="button"
-                        className="btn btn-red btn-sm"
-                        onClick={addCustomCategory}
-                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      <select
+                        className="form-select"
+                        value={newCategoryParentId}
+                        onChange={e => setNewCategoryParentId(e.target.value)}
                       >
-                        Agregar
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        onClick={() => { setShowNewCategory(false); setNewCategoryInput('') }}
-                        style={{ border: '1px solid var(--gray-200)', whiteSpace: 'nowrap', flexShrink: 0 }}
-                      >
-                        ✕
-                      </button>
+                        <option value="">Sin categoría padre (raíz)</option>
+                        {flatCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                      </select>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" className="btn btn-red btn-sm" onClick={addCategory}>
+                          Agregar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => { setShowNewCategory(false); setNewCategoryName(''); setNewCategoryParentId('') }}
+                          style={{ border: '1px solid var(--gray-200)' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <select
                       className="form-select"
-                      value={form.category}
-                      onChange={e => {
-                        if (e.target.value === '__new__') {
-                          setShowNewCategory(true)
-                          setForm(f => ({ ...f, category: allCategories[0] }))
-                        } else {
-                          setForm(f => ({ ...f, category: e.target.value }))
-                        }
-                      }}
+                      value={form.categoryId}
+                      onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
                       required
                     >
-                      {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                      <option disabled>──────────</option>
-                      <option value="__new__">+ Nueva categoría...</option>
+                      <option value="" disabled>Selecciona una categoría</option>
+                      {flatCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
                   )}
                   {!showNewCategory && (

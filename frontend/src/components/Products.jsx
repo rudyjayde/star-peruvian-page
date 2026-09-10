@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Search, ZoomIn, ZoomOut } from 'lucide-react'
+import { Search, ZoomIn, ZoomOut, ShoppingCart } from 'lucide-react'
 import { normalizeImageList, normalizeTextList, resolveAssetUrl } from '../utils/assetUrl'
+import { useCart } from '../context/CartContext'
 
 const DEMO_PRODUCTS = [
   {
@@ -110,6 +111,18 @@ const DEMO_PRODUCTS = [
   },
 ]
 
+// Flattens the category tree into tabs, each carrying its own slug plus
+// every descendant slug — selecting a parent category has to match products
+// filed under any of its subcategories too.
+const flattenCategoryTabs = (nodes, depth = 0) =>
+  nodes.flatMap(node => {
+    const collectSlugs = (n) => [n.slug, ...(n.children || []).flatMap(collectSlugs)]
+    return [
+      { slug: node.slug, name: node.name, depth, descendantSlugs: collectSlugs(node) },
+      ...flattenCategoryTabs(node.children || [], depth + 1),
+    ]
+  })
+
 const compareProducts = (left, right) => {
   const leftCategory = String(left.category || '').trim()
   const rightCategory = String(right.category || '').trim()
@@ -138,6 +151,14 @@ function ProductCard({ product, onBrandSelect, onWhatsApp, onPreview, style }) {
   const sizes = normalizeTextList(product.sizes)
   const brand = String(product.brand || '').trim()
   const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [justAdded, setJustAdded] = useState(false)
+  const { addItem } = useCart()
+
+  const handleAddToCart = () => {
+    addItem(product, product.minOrder || 1)
+    setJustAdded(true)
+    setTimeout(() => setJustAdded(false), 1500)
+  }
 
   useEffect(() => {
     setActiveImageIndex(0)
@@ -235,6 +256,17 @@ function ProductCard({ product, onBrandSelect, onWhatsApp, onPreview, style }) {
           <span className="product-min">Mín. {product.minOrder || 12}u</span>
         </div>
 
+        <button
+          type="button"
+          className="btn btn-blue btn-sm"
+          style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}
+          onClick={handleAddToCart}
+          disabled={product.stock <= 0}
+        >
+          <ShoppingCart size={15} />
+          {justAdded ? 'Agregado ✓' : product.stock > 0 ? `Agregar ${product.minOrder || 12}u al carrito` : 'Sin stock'}
+        </button>
+
         {(colors.length > 0 || sizes.length > 0) && (
           <div className="product-variants">
             {colors.length > 0 && (
@@ -270,12 +302,12 @@ function ProductCard({ product, onBrandSelect, onWhatsApp, onPreview, style }) {
 
 export default function Products() {
   const [products, setProducts] = useState(DEMO_PRODUCTS)
-  const [activeCategory, setActiveCategory] = useState('Todos')
+  const [categoryTabs, setCategoryTabs] = useState([])
+  const [activeCategory, setActiveCategory] = useState('todos')
   const [activeBrand, setActiveBrand] = useState('Todos')
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState(null)
 
-  const categories = ['Todos', ...[...new Set(products.map(product => String(product.category || '').trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right, 'es', { sensitivity: 'base' }))]
   const brands = ['Todos', ...[...new Set(products.map(product => String(product.brand || '').trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right, 'es', { sensitivity: 'base' }))]
 
   useEffect(() => {
@@ -284,6 +316,10 @@ export default function Products() {
       .then(res => { if (res.data?.length > 0) setProducts(res.data) })
       .catch(() => {})
       .finally(() => setLoading(false))
+
+    axios.get('/api/categories')
+      .then(res => setCategoryTabs(flattenCategoryTabs(res.data)))
+      .catch(() => setCategoryTabs([]))
   }, [])
 
   useEffect(() => {
@@ -293,8 +329,18 @@ export default function Products() {
       document.getElementById('productos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
+    const handleCategorySelection = (event) => {
+      const slug = String(event.detail?.slug || 'todos').trim() || 'todos'
+      setActiveCategory(slug)
+      document.getElementById('productos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
     window.addEventListener('sp-select-brand', handleBrandSelection)
-    return () => window.removeEventListener('sp-select-brand', handleBrandSelection)
+    window.addEventListener('sp-select-category', handleCategorySelection)
+    return () => {
+      window.removeEventListener('sp-select-brand', handleBrandSelection)
+      window.removeEventListener('sp-select-category', handleCategorySelection)
+    }
   }, [])
 
   useEffect(() => {
@@ -307,9 +353,11 @@ export default function Products() {
     return () => observer.disconnect()
   }, [products, activeCategory, activeBrand])
 
+  const activeTab = categoryTabs.find(tab => tab.slug === activeCategory)
+
   const filtered = products
     .filter(product => {
-    const matchesCategory = activeCategory === 'Todos' || product.category === activeCategory
+    const matchesCategory = activeCategory === 'todos' || activeTab?.descendantSlugs.includes(product.categorySlug)
     const productBrand = String(product.brand || '').trim()
     const matchesBrand = activeBrand === 'Todos' || productBrand === activeBrand
     return matchesCategory && matchesBrand
@@ -372,15 +420,15 @@ export default function Products() {
             <h2 className="section-title reveal">
               Nuestros <span className="text-red">Productos</span>
             </h2>
-            {(activeBrand !== 'Todos' || activeCategory !== 'Todos') && (
+            {(activeBrand !== 'Todos' || activeCategory !== 'todos') && (
               <div className="active-filter-chip reveal">
                 <span>
                   Filtrando:
                   {activeBrand !== 'Todos' ? ` marca ${activeBrand}` : ''}
-                  {activeBrand !== 'Todos' && activeCategory !== 'Todos' ? ' · ' : ''}
-                  {activeCategory !== 'Todos' ? ` categoría ${activeCategory}` : ''}
+                  {activeBrand !== 'Todos' && activeCategory !== 'todos' ? ' · ' : ''}
+                  {activeCategory !== 'todos' ? ` categoría ${activeTab?.name || ''}` : ''}
                 </span>
-                <button type="button" onClick={() => { setActiveBrand('Todos'); setActiveCategory('Todos') }}>
+                <button type="button" onClick={() => { setActiveBrand('Todos'); setActiveCategory('todos') }}>
                   Limpiar
                 </button>
               </div>
@@ -388,13 +436,20 @@ export default function Products() {
           </div>
 
           <div className="category-tabs reveal">
-            {categories.map(category => (
+            <button
+              className={`cat-tab ${activeCategory === 'todos' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('todos')}
+            >
+              Todos
+            </button>
+            {categoryTabs.map(tab => (
               <button
-                key={category}
-                className={`cat-tab ${activeCategory === category ? 'active' : ''}`}
-                onClick={() => setActiveCategory(category)}
+                key={tab.slug}
+                className={`cat-tab ${activeCategory === tab.slug ? 'active' : ''}`}
+                style={tab.depth > 0 ? { opacity: 0.85, fontSize: '0.9em' } : undefined}
+                onClick={() => setActiveCategory(tab.slug)}
               >
-                {category}
+                {tab.depth > 0 ? `— ${tab.name}` : tab.name}
               </button>
             ))}
           </div>

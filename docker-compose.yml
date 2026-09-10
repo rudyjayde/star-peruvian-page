@@ -1,0 +1,17 @@
+services:
+  mysql:
+    image: mariadb:11
+    container_name: star-peruvian-mysql-local
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: star_peruvian
+      MYSQL_USER: star_peruvian
+      MYSQL_PASSWORD: star_peruvian
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

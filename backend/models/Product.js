@@ -48,9 +48,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.STRING(200),
     allowNull: false,
   },
-  category: {
-    type: DataTypes.STRING(100),
+  categoryId: {
+    type: DataTypes.INTEGER,
     allowNull: false,
+    field: 'category_id',
   },
   brand: {
     type: DataTypes.STRING(120),

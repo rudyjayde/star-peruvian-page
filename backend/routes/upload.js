@@ -1,32 +1,26 @@
 const router = require('express').Router()
 const multer = require('multer')
-const path = require('path')
-const fs = require('fs')
+const cloudinary = require('cloudinary').v2
+const { CloudinaryStorage } = require('multer-storage-cloudinary')
 const authMiddleware = require('../middleware/auth')
-const { toPublicUrl } = require('../utils/publicUrl')
 
-const uploadDir = path.join(__dirname, '../uploads')
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9)
-    cb(null, 'product-' + unique + path.extname(file.originalname))
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'star-peruvian/products',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+    transformation: [{ width: 1600, height: 1600, crop: 'limit' }],
   },
 })
 
-const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|webp|gif/
-  const ext = allowed.test(path.extname(file.originalname).toLowerCase())
-  const mime = allowed.test(file.mimetype)
-  if (ext && mime) cb(null, true)
-  else cb(new Error('Solo se permiten imágenes (JPG, PNG, WEBP, GIF)'))
-}
-
 const upload = multer({
   storage,
-  fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 },
 })
 
@@ -34,10 +28,8 @@ router.post('/', authMiddleware, upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No se recibió ninguna imagen' })
   }
-  const url = toPublicUrl(req, `/uploads/${req.file.filename}`)
   res.json({
-    url,
-    path: `/uploads/${req.file.filename}`,
+    url: req.file.path,
     filename: req.file.filename,
   })
 })

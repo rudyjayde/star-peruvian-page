@@ -3,7 +3,8 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const morgan = require('morgan')
-const sequelize = require('./database')
+const { sequelize, User } = require('./models')
+const { globalLimiter } = require('./middleware/rateLimit')
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -77,13 +78,18 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'))
 }
 
-// Serve uploaded images
+// Serve uploaded images (legacy — new uploads go to Cloudinary, this stays
+// only so pre-existing /uploads/... image URLs already in the DB keep working)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+
+app.use('/api', globalLimiter)
 
 // Routes
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/products', require('./routes/products'))
+app.use('/api/categories', require('./routes/categories'))
 app.use('/api/upload', require('./routes/upload'))
+app.use('/api/checkout', require('./routes/checkout'))
 app.use('/api/reclamaciones', require('./routes/reclamaciones'))
 
 // Health check
@@ -101,17 +107,10 @@ const startServer = async () => {
     await sequelize.authenticate()
     console.log('✅ MySQL conectado')
 
-    // Load all models before sync so tables are created
-    require('./models/User')
-    require('./models/Product')
-    require('./models/Reclamacion')
-
-    // Sync all models (creates tables if they don't exist)
-    await sequelize.sync({ alter: true })
-    console.log('✅ Tablas sincronizadas')
+    // Tables/associations are managed via migrations, run with
+    // `npx sequelize-cli db:migrate` — never sync/alter automatically here.
 
     // Seed admin user if not exists
-    const User = require('./models/User')
     const existing = await User.findOne({ where: { username: 'admin' } })
     if (!existing) {
       const adminPass = process.env.ADMIN_PASSWORD || 'admin123'

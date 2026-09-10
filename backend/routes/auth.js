@@ -2,6 +2,7 @@ const router = require('express').Router()
 const jwt = require('jsonwebtoken')
 const User = require('../models/User')
 const authMiddleware = require('../middleware/auth')
+const { strictLimiter } = require('../middleware/rateLimit')
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -9,7 +10,7 @@ const signToken = (id) =>
   })
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', strictLimiter, async (req, res) => {
   const { username, password } = req.body
   if (!username || !password)
     return res.status(400).json({ message: 'Usuario y contraseña requeridos' })
@@ -26,7 +27,7 @@ router.post('/login', async (req, res) => {
 })
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', strictLimiter, async (req, res) => {
   const { username, password } = req.body
   if (!username || !password)
     return res.status(400).json({ message: 'Usuario y contraseña requeridos' })
